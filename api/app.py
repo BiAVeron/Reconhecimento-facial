@@ -8,9 +8,8 @@ app = FastAPI()
 
 
 class PontoEntrada(BaseModel):
-    lat: float
-    lon: float
-    nome: str
+    embedding: list[float]
+    id: str 
 
 @app.post("/construir-arvore")
 def constroi_arvore():
@@ -19,20 +18,29 @@ def constroi_arvore():
 
 @app.post("/inserir")
 def inserir(ponto: PontoEntrada):
-    nome_bytes = ponto.nome.encode('utf-8')[:99]  # Trunca se necessário
-    novo_ponto = TReg(lat=ponto.lat, lon=ponto.lon, nome=nome_bytes)
+    if len(ponto.embedding) != 128:
+        return {"erro": "O vetor de embedding deve conter exatamente 128 valores."}
+
+    emb_array = (c_float * 128)(*ponto.embedding)
+    id_bytes = ponto.id.encode('utf-8')[:99]  # Trunca se necessário
+
+    novo_ponto = TReg(embedding=emb_array, id=id_bytes)
     lib.inserir_ponto(novo_ponto)
-    return {"mensagem": f"Ponto '{ponto.nome}' inserido com sucesso."}
 
-@app.get("/buscar")
-def buscar(lat: float = Query(...), lon: float = Query(...)):
-    query = TReg(lat=lat, lon=lon)
+    return {"mensagem": f"Pessoa com ID '{ponto.id}' inserida com sucesso."}
 
-    arv = lib.get_tree()  # Suponha que esta função retorne ponteiro para árvore já construída
-    resultado = lib.buscar_mais_proximo(arv, query)
+@app.post("/buscar")
+def buscar(embedding: list[float]):
+    if len(embedding) != 128:
+        return {"erro": "O vetor de embedding deve conter exatamente 128 valores."}
+
+    emb_array = (c_float * 128)(*embedding)
+    consulta = TReg(embedding=emb_array, id=b"")
+
+    arv = lib.get_tree()
+    resultado = lib.buscar_mais_proximo(arv, consulta)
 
     return {
-        "lat": resultado.lat,
-        "lon": resultado.lon,
-        "nome": resultado.nome
+        "id": resultado.id.decode('utf-8').rstrip('\x00')
     }
+
