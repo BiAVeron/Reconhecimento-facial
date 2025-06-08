@@ -23,15 +23,12 @@ void *aloca_reg(float val0, float val1, const char id[]) {
 }
 
 
-int comparador(void *a, void *b, int pos) {
-    treg *ra = (treg *)a;
-    treg *rb = (treg *)b;
-    if (ra->embedding[pos] < rb->embedding[pos])
-        return -1;
-    else if (ra->embedding[pos] > rb->embedding[pos])
-        return 1;
-    else
-        return 0;
+int comparador(void *va, void *vb, int pos) {
+    treg *a = (treg*)va;
+    treg *b = (treg*)vb;
+    if (a->embedding[pos] < b->embedding[pos]) return -1;
+    if (a->embedding[pos] > b->embedding[pos]) return  1;
+    return 0;
 }
 
 double distancia(void *a, void *b) {
@@ -83,7 +80,7 @@ void test_constroi(){
 
 
     /* chamada de funções */
-    kdtree_constroi(&arv,comparador,distancia,2);
+    kdtree_constroi(&arv,comparador,distancia,128);
     
     /* testes */
     assert(arv.raiz == NULL);
@@ -158,8 +155,9 @@ void _kdtree_busca(tarv *arv, tnode ** atual, void * key, int profund, double *m
 
         /* Verifica se deve buscar também no outro lado*/
 
-        if (comp*comp < *menor_dist) {
-            printf("tentando do outro lado %d\n",comp*comp);
+        double diff = ((treg *)((*atual)->key))->embedding[pos] - ((treg *)(key))->embedding[pos];
+        double dist_hyper = diff * diff;
+        if (dist_hyper < *menor_dist) {
             _kdtree_busca(arv, lado_oposto, key, profund + 1, menor_dist, menor);
         }
     }
@@ -173,12 +171,22 @@ tnode * kdtree_busca(tarv *arv, void * key){
     return menor;
 }
 
-treg buscar_mais_proximo(tarv *arv, treg query) {
+treg buscar_mais_proximo(tarv *arv, treg *query) {
     double menor_dist = 1e20;
     tnode *menor = NULL;
-    _kdtree_busca(arv, &(arv->raiz), &query, 0, &menor_dist, &menor);
-    return *((treg *)(menor->key));
+    _kdtree_busca(arv, &(arv->raiz), query, 0, &menor_dist, &menor);
+    
+    if (menor != NULL) {
+        printf("Mais próximo: %s com distância %.3f\n", ((treg *)menor->key)->id, menor_dist);
+        return *((treg *)(menor->key));
+    } else {
+        treg vazio;
+        memset(&vazio, 0, sizeof(treg));
+        strcpy(vazio.id, "NENHUM_ENCONTRADO");
+        return vazio;
+    }
 }
+
 
 
 tarv arvore_global;
@@ -192,8 +200,9 @@ void inserir_ponto(treg p) {
     *novo = p;  // cópia de estrutura
     kdtree_insere(&arvore_global,novo);
 }
+
 void kdtree_construir() {
-    arvore_global.k = 2;
+    arvore_global.k = 128;
     arvore_global.dist = distancia;
     arvore_global.cmp = comparador;
     arvore_global.raiz = NULL;
@@ -201,7 +210,7 @@ void kdtree_construir() {
 
 void test_busca(){
     tarv arv;
-    kdtree_constroi(&arv,comparador,distancia,2);
+    kdtree_constroi(&arv,comparador,distancia,128);
     kdtree_insere(&arv,aloca_reg(10,10,"a"));
     kdtree_insere(&arv,aloca_reg(20,20,"b"));
     kdtree_insere(&arv,aloca_reg(1,10,"c"));
@@ -242,6 +251,7 @@ void test_busca(){
     free(atual);
     kdtree_destroi(&arv);
 }
+
 
 
 int main(void){

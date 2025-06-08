@@ -1,10 +1,10 @@
 import ctypes
 from ctypes import *
-from ctypes import Structure, POINTER, c_float, c_int,c_char
+from ctypes import Structure, POINTER, c_float, c_char
 
 class TReg(Structure):
     _fields_ = [("embedding", c_float * 128), 
-                ("id", c_char * 100),
+                ("id",        c_char * 100),
                 ]
 
 class TNode(Structure):
@@ -21,13 +21,14 @@ class Tarv(Structure):
                 ("raiz", POINTER(TNode))]
 
 # Carregar a biblioteca C
-lib = ctypes.CDLL("./libkdtree.so")
+lib = ctypes.CDLL("./libkdtree.dll")
 
 # Definir a assinatura da função
-lib.buscar_mais_proximos.argtypes = [POINTER(Tarv), TReg, c_int]
-lib.buscar_mais_proximos.restype = POINTER(TReg)
+lib.buscar_mais_proximo.argtypes = [POINTER(Tarv), POINTER(TReg)]
+lib.buscar_mais_proximo.restype  = TReg
 lib.get_tree.restype = POINTER(Tarv)
 lib.inserir_ponto.argtypes = [TReg]
 lib.inserir_ponto.restype = None
 lib.kdtree_construir.argtypes = []
 lib.kdtree_construir.restype = None
+
